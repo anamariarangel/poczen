@@ -1,11 +1,10 @@
 <?php
 session_start();
 
-// Carregar PHPMailer
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
+// Carregar Resend
 require 'vendor/autoload.php';
+
+use Resend\Resend;
 
 // Generate CAPTCHA in session
 if (!isset($_SESSION['captcha_num1']) || !isset($_SESSION['captcha_num2'])) {
@@ -49,51 +48,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // If no errors, process
     if (empty($errors)) {
-        $mail = new PHPMailer(true);
-        
         try {
-            // Configuração SMTP
-            $mail->isSMTP();
-            $mail->Host = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
-            $mail->SMTPAuth = true;
-            $mail->Username = getenv('SMTP_USER') ?: 'seu-email@gmail.com';
-            $mail->Password = getenv('SMTP_PASS') ?: 'sua-senha-app';
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port = getenv('SMTP_PORT') ?: 587;
+            $resend = Resend::client(getenv('RESEND_API_KEY'));
             
-            // Remetente
-            $mail->setFrom(getenv('SMTP_FROM') ?: 'noreply@yoursite.com', 'Your Site');
-            
-            // Destinatário
-            $mail->addAddress($email, $name);
-            
-            // Conteúdo do email
-            $mail->isHTML(true);
-            $mail->Subject = 'Form Submission Confirmation';
-            $mail->Body = "
-                <h2>Hello " . htmlspecialchars($name) . ",</h2>
-                <p>We have received your form submission!</p>
-                <h3>Submitted data:</h3>
-                <ul>
-                    <li><strong>Name:</strong> " . htmlspecialchars($name) . "</li>
-                    <li><strong>Email:</strong> " . htmlspecialchars($email) . "</li>
-                    <li><strong>Company:</strong> " . htmlspecialchars($company) . "</li>
-                    <li><strong>Phone:</strong> " . htmlspecialchars($phone) . "</li>
-                </ul>
-                <p>We will contact you soon.</p>
-                <p>Best regards,<br>Support Team</p>
-            ";
-            $mail->AltBody = "Hello " . htmlspecialchars($name) . ",\n\n" .
-                           "We have received your form submission!\n\n" .
-                           "Submitted data:\n" .
-                           "Name: " . htmlspecialchars($name) . "\n" .
-                           "Email: " . htmlspecialchars($email) . "\n" .
-                           "Company: " . htmlspecialchars($company) . "\n" .
-                           "Phone: " . htmlspecialchars($phone) . "\n\n" .
-                           "We will contact you soon.\n\n" .
-                           "Best regards,\nSupport Team";
-            
-            $mail->send();
+            $resend->emails->send([
+                'from' => 'onboarding@resend.dev',
+                'to' => [$email],
+                'subject' => 'Form Submission Confirmation',
+                'html' => "
+                    <h2>Hello " . htmlspecialchars($name) . ",</h2>
+                    <p>We have received your form submission!</p>
+                    <h3>Submitted data:</h3>
+                    <ul>
+                        <li><strong>Name:</strong> " . htmlspecialchars($name) . "</li>
+                        <li><strong>Email:</strong> " . htmlspecialchars($email) . "</li>
+                        <li><strong>Company:</strong> " . htmlspecialchars($company) . "</li>
+                        <li><strong>Phone:</strong> " . htmlspecialchars($phone) . "</li>
+                    </ul>
+                    <p>We will contact you soon.</p>
+                    <p>Best regards,<br>Support Team</p>
+                "
+            ]);
             
             // Regenerate CAPTCHA
             $_SESSION['captcha_num1'] = rand(1, 10);
@@ -104,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
             
         } catch (Exception $e) {
-            $errors[] = "Error sending confirmation email: {$mail->ErrorInfo}";
+            $errors[] = "Error sending confirmation email: " . $e->getMessage();
         }
     }
     
@@ -127,6 +102,7 @@ if (isset($_GET['success']) && $_GET['success'] == '1') {
             h1 { color: #333; }
             p { color: #666; line-height: 1.6; }
             a { color: #0066cc; text-decoration: none; }
+            a:hover { text-decoration: underline; }
         </style>
     </head>
     <body>
@@ -175,6 +151,7 @@ if (isset($_GET['success']) && $_GET['success'] == '1') {
             display: block;
             margin-bottom: 5px;
             color: #333;
+            font-weight: bold;
         }
         input {
             width: 100%;
@@ -183,11 +160,13 @@ if (isset($_GET['success']) && $_GET['success'] == '1') {
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 14px;
+            box-sizing: border-box;
         }
         .captcha {
             display: flex;
             gap: 10px;
             align-items: center;
+            margin-bottom: 15px;
         }
         .captcha-question {
             background: #f5f5f5;
@@ -207,6 +186,7 @@ if (isset($_GET['success']) && $_GET['success'] == '1') {
             border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
+            font-weight: bold;
         }
         button:hover {
             background: #0052a3;
