@@ -1,6 +1,12 @@
 <?php
 session_start();
 
+// Carregar PHPMailer
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require 'vendor/autoload.php';
+
 // Generate CAPTCHA in session
 if (!isset($_SESSION['captcha_num1']) || !isset($_SESSION['captcha_num2'])) {
     $_SESSION['captcha_num1'] = rand(1, 10);
@@ -43,25 +49,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // If no errors, process
     if (empty($errors)) {
-        // Send confirmation email
-        $to = $email;
-        $subject = "Form Submission Confirmation";
-        $message = "Hello " . htmlspecialchars($name) . ",\n\n";
-        $message .= "We have received your form submission!\n\n";
-        $message .= "Submitted data:\n";
-        $message .= "Name: " . htmlspecialchars($name) . "\n";
-        $message .= "Email: " . htmlspecialchars($email) . "\n";
-        $message .= "Company: " . htmlspecialchars($company) . "\n";
-        $message .= "Phone: " . htmlspecialchars($phone) . "\n\n";
-        $message .= "We will contact you soon.\n\n";
-        $message .= "Best regards,\nSupport Team";
+        $mail = new PHPMailer(true);
         
-        $headers = "From: noreply@yoursite.com\r\n";
-        $headers .= "Reply-To: contact@yoursite.com\r\n";
-        $headers .= "X-Mailer: PHP/" . phpversion();
-        
-        // Try to send email
-        if (mail($to, $subject, $message, $headers)) {
+        try {
+            // Configuração SMTP
+            $mail->isSMTP();
+            $mail->Host = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
+            $mail->SMTPAuth = true;
+            $mail->Username = getenv('SMTP_USER') ?: 'seu-email@gmail.com';
+            $mail->Password = getenv('SMTP_PASS') ?: 'sua-senha-app';
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port = getenv('SMTP_PORT') ?: 587;
+            
+            // Remetente
+            $mail->setFrom(getenv('SMTP_FROM') ?: 'noreply@yoursite.com', 'Your Site');
+            
+            // Destinatário
+            $mail->addAddress($email, $name);
+            
+            // Conteúdo do email
+            $mail->isHTML(true);
+            $mail->Subject = 'Form Submission Confirmation';
+            $mail->Body = "
+                <h2>Hello " . htmlspecialchars($name) . ",</h2>
+                <p>We have received your form submission!</p>
+                <h3>Submitted data:</h3>
+                <ul>
+                    <li><strong>Name:</strong> " . htmlspecialchars($name) . "</li>
+                    <li><strong>Email:</strong> " . htmlspecialchars($email) . "</li>
+                    <li><strong>Company:</strong> " . htmlspecialchars($company) . "</li>
+                    <li><strong>Phone:</strong> " . htmlspecialchars($phone) . "</li>
+                </ul>
+                <p>We will contact you soon.</p>
+                <p>Best regards,<br>Support Team</p>
+            ";
+            $mail->AltBody = "Hello " . htmlspecialchars($name) . ",\n\n" .
+                           "We have received your form submission!\n\n" .
+                           "Submitted data:\n" .
+                           "Name: " . htmlspecialchars($name) . "\n" .
+                           "Email: " . htmlspecialchars($email) . "\n" .
+                           "Company: " . htmlspecialchars($company) . "\n" .
+                           "Phone: " . htmlspecialchars($phone) . "\n\n" .
+                           "We will contact you soon.\n\n" .
+                           "Best regards,\nSupport Team";
+            
+            $mail->send();
+            
             // Regenerate CAPTCHA
             $_SESSION['captcha_num1'] = rand(1, 10);
             $_SESSION['captcha_num2'] = rand(1, 10);
@@ -69,8 +102,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Redirect to thank you page
             header('Location: ?success=1');
             exit;
-        } else {
-            $errors[] = "Error sending confirmation email. Please try again.";
+            
+        } catch (Exception $e) {
+            $errors[] = "Error sending confirmation email: {$mail->ErrorInfo}";
         }
     }
     
