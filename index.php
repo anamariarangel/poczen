@@ -1,11 +1,6 @@
 <?php
 session_start();
 
-// Carregar Resend - only load once
-if (!class_exists('Resend')) {
-    require_once __DIR__ . '/vendor/autoload.php';
-}
-
 // Generate CAPTCHA in session
 if (!isset($_SESSION['captcha_num1']) || !isset($_SESSION['captcha_num2'])) {
     $_SESSION['captcha_num1'] = rand(1, 10);
@@ -16,6 +11,9 @@ $errors = [];
 $success = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Carregar Resend APENAS quando for processar o formulário
+    require __DIR__ . '/vendor/autoload.php';
+    
     // Sanitize inputs
     $name = trim(filter_input(INPUT_POST, 'name', FILTER_SANITIZE_SPECIAL_CHARS));
     $email = trim(filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL));
@@ -55,8 +53,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception('RESEND_API_KEY environment variable is not set');
             }
             
-            // Create Resend client with full namespace
-            $resend = \Resend\Resend::client($apiKey);
+            // Create Resend client
+            $resend = Resend::client($apiKey);
             
             $result = $resend->emails->send([
                 'from' => 'onboarding@resend.dev',
