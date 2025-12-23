@@ -1,10 +1,8 @@
 <?php
 session_start();
 
-// Carregar Resend
-require 'vendor/autoload.php';
-
-use Resend\Resend;
+// Carregar Resend - only load once
+require_once 'vendor/autoload.php';
 
 // Generate CAPTCHA in session
 if (!isset($_SESSION['captcha_num1']) || !isset($_SESSION['captcha_num2'])) {
@@ -49,9 +47,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // If no errors, process
     if (empty($errors)) {
         try {
-            $resend = Resend::client(getenv('RESEND_API_KEY'));
+            // Check if API key is set (Railway uses $_ENV)
+            $apiKey = $_ENV['RESEND_API_KEY'] ?? getenv('RESEND_API_KEY');
+            if (empty($apiKey)) {
+                throw new Exception('RESEND_API_KEY environment variable is not set');
+            }
             
-            $resend->emails->send([
+            // Create Resend client with full namespace
+            $resend = \Resend\Resend::client($apiKey);
+            
+            $result = $resend->emails->send([
                 'from' => 'onboarding@resend.dev',
                 'to' => [$email],
                 'subject' => 'Form Submission Confirmation',
