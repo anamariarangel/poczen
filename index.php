@@ -2,7 +2,9 @@
 session_start();
 
 // Carregar Resend - only load once
-require_once 'vendor/autoload.php';
+if (!class_exists('Resend')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+}
 
 // Generate CAPTCHA in session
 if (!isset($_SESSION['captcha_num1']) || !isset($_SESSION['captcha_num2'])) {
