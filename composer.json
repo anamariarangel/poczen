@@ -1,5 +1,9 @@
 {
     "require": {
-        "resend/resend-php": "^0.10.0"
+        "resend/resend-php": "^0.13.0"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "classmap-authoritative": true
     }
 }
